@@ -54,10 +54,11 @@ homework runner.
 ```mermaid
 flowchart LR
     ReceiptImage[Supermarket Receipt Image] --> Prompt[System Prompt + Multimodal User Message]
-    Prompt --> LLM[deepseek‑v4‑flash‑vision‑exp]
+    Prompt --> LLM[deepseek-v4-flash-vision-exp]
     LLM --> JsonParser[JsonOutputParser]
-    JsonParser --> Loop[Loop all receipts, accumulate total values]
-    Loop --> Format[Format output as HK$ string]
-    Format --> FinalOutput[Result dictionary for two queries]
+    JsonParser --> Loop[Loop over receipts & accumulate sums]
+    Loop --> Format[Format values as HK$ strings]
+    Format --> Output[Query result dictionary]
+
 
 This solution builds a LangChain chain for supermarket receipt parsing. The system prompt defines strict parsing rules and provides an escaped JSON example. It reminds the LLM to capture every discount entry and explicitly exclude ROUNDING value from discount calculation. The multimodal model deepseek‑v4‑flash‑vision‑exp reads receipt images and outputs structured JSON. JsonOutputParser converts model output to Python dictionary. We iterate through each receipt, sum `final_payment` for total spending, calculate `subtotal + total_discount` for price without discount, format final answers into HK$ currency strings.
