@@ -13,7 +13,6 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-
 QUERY_1 = "How much money did I spend in total for these bills?"
 QUERY_2 = "How much would I have had to pay without the discount?"
 QUERIES = (QUERY_1, QUERY_2)
@@ -51,7 +50,6 @@ def image_data_url(path: Path) -> str:
     encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
 
-
 def build_chain() -> Any:
     """Create and return your LangChain chain once.
 
@@ -63,7 +61,45 @@ def build_chain() -> Any:
     ``deepseek-v4-flash-vision-exp``. The API key is loaded from .env.
     """
     ### YOUR CODE HERE
-    return None
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_deepseek import ChatDeepSeek
+    from langchain_core.output_parsers import JsonOutputParser
+
+    parser = JsonOutputParser()
+
+    prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            "You are an expert financial assistant for supermarket receipt analysis.\n"
+            "Carefully scan the whole receipt image, find ALL discount, promotion and coupon lines.\n"
+            "Extract these three numerical fields strictly:\n"
+            "STRICT RULES:\n"
+            "1. final_payment: actual money paid by customer AFTER ROUNDING adjustment.\n"
+            "2. subtotal: printed SUBTOTAL value before any discounts.\n"
+            "3. total_discount: SUM OF EVERY discount / promotion / coupon amount. Convert negative discount values to POSITIVE and add them together. "
+            "!!! CRITICAL: DO NOT MISS ANY DISCOUNT ITEM. NEVER include ROUNDING adjustment inside total_discount, ROUNDING is NOT a discount.\n"
+            "If there are zero discounts on receipt, set total_discount = 0.0.\n"
+            "\nOutput ONLY pure JSON, no extra words, no markdown ``` blocks.\n"
+            "Example output: {{\"final_payment\":102.30,\"subtotal\":102.31,\"total_discount\":5.39}}"
+
+        ),
+        (
+            "user",
+            [
+                {"type": "text", "text": "Extract receipt numeric fields from this image:"},
+                {"type": "image_url", "image_url": {"url": "{image_url}"}}
+            ]
+        )
+    ])
+
+    llm = ChatDeepSeek(
+        model="deepseek-v4-flash-vision-exp",
+        temperature=0.0,
+        timeout=60.0
+    )
+
+    chain = prompt | llm | parser
+    return chain
 
 
 def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
@@ -79,8 +115,25 @@ def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
     to process independent receipt-extraction prompts in parallel.
     """
     ### YOUR CODE HERE
-    _ = (chain, images)
-    return {QUERY_1: DUMMY_RESPONSE, QUERY_2: DUMMY_RESPONSE}
+
+    total_spent = 0.0
+    total_without_discount = 0.0
+
+    for img_path in images:
+        try:
+            img_url = image_data_url(img_path)
+            res_dict = chain.invoke({"image_url": img_url})
+
+            total_spent += float(res_dict["final_payment"])
+            total_without_discount += float(res_dict["subtotal"]) + float(res_dict["total_discount"])
+
+        except Exception as e:
+            print(f"Error processing {img_path.name}: {e}")
+
+    return {
+        QUERY_1: f"HK${total_spent:.2f}",
+        QUERY_2: f"HK${total_without_discount:.2f}"
+    }
 
 
 # Everything below is provided runner/scoring code. No edits are needed.
