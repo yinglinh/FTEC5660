@@ -79,6 +79,7 @@ def build_chain() -> Any:
             "3. total_discount: SUM OF EVERY discount / promotion / coupon amount. Convert negative discount values to POSITIVE and add them together. "
             "!!! CRITICAL: DO NOT MISS ANY DISCOUNT ITEM. NEVER include ROUNDING adjustment inside total_discount, ROUNDING is NOT a discount.\n"
             "If there are zero discounts on receipt, set total_discount = 0.0.\n"
+            "All numerical values must be floating-point numbers (e.g. use 102.30 not 102).\n"
             "\nOutput ONLY pure JSON, no extra words, no markdown ``` blocks.\n"
             "Example output: {{\"final_payment\":102.30,\"subtotal\":102.31,\"total_discount\":5.39}}"
 
@@ -118,22 +119,22 @@ def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
 
     total_spent = 0.0
     total_without_discount = 0.0
-
     for img_path in images:
         try:
             img_url = image_data_url(img_path)
             res_dict = chain.invoke({"image_url": img_url})
-
-            total_spent += float(res_dict["final_payment"])
-            total_without_discount += float(res_dict["subtotal"]) + float(res_dict["total_discount"])
-
+            final_pay = float(res_dict.get("final_payment", 0.0))
+            sub = float(res_dict.get("subtotal", 0.0))
+            disc = float(res_dict.get("total_discount", 0.0))
+            total_spent += final_pay
+            total_without_discount += sub + disc
         except Exception as e:
             print(f"Error processing {img_path.name}: {e}")
 
     return {
-        QUERY_1: f"HK${total_spent:.2f}",
-        QUERY_2: f"HK${total_without_discount:.2f}"
-    }
+    QUERY_1: f"HK${total_spent:.2f}",
+    QUERY_2: f"HK${total_without_discount:.2f}"
+}
 
 
 # Everything below is provided runner/scoring code. No edits are needed.
