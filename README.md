@@ -51,7 +51,6 @@ homework runner.
 ## Homework 1 solution:
 > to students: please fill your solution description here.
 ## Homework 1 solution
-```mermaid
 flowchart LR
     ReceiptImage[Supermarket Receipt Image] --> Prompt[System Prompt + Multimodal User Message]
     Prompt --> LLM[deepseek-v4-flash-vision-exp]
